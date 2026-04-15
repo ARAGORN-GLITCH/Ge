@@ -1,89 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Optimized Live Sync</title>
-
-<style>
-body {
-  font-family: Arial;
-  margin: 20px;
-  text-align: center;
-  background: #f4f6f9;
-}
-
-input {
-  width: 90%;
-  padding: 12px;
-  font-size: 16px;
-}
-
-.box {
-  margin-top: 20px;
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 18px;
-}
-</style>
+<title>Sync Test</title>
 </head>
 
 <body>
 
-<h2>⚡ Fast Sync System</h2>
+<h2>Live Sync</h2>
+<input id="input" placeholder="Type...">
+<p id="output">Connecting...</p>
 
-<input id="textInput" placeholder="Type here...">
-<div class="box" id="output">Waiting...</div>
-
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
-/* 🔑 YOUR FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "YOUR_KEY",
   authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
   projectId: "YOUR_PROJECT"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const input = document.getElementById("textInput");
+const input = document.getElementById("input");
 const output = document.getElementById("output");
 
-let lastSent = "";
-let typingTimer;
+/* SHOW STATUS */
+output.innerText = "Trying to connect...";
 
-/* ⚡ OPTIMIZED WRITE (debounced) */
+/* WRITE */
 input.addEventListener("input", () => {
-
-  clearTimeout(typingTimer);
-
-  typingTimer = setTimeout(() => {
-    const value = input.value;
-
-    // prevent duplicate writes
-    if (value === lastSent) return;
-
-    lastSent = value;
-
-    db.ref("sharedText").set(value);
-  }, 300); // delay reduces lag
+  db.ref("sharedText").set(input.value);
 });
 
-/* ⚡ OPTIMIZED READ */
-db.ref("sharedText").on("value", (snapshot) => {
-  const value = snapshot.val() || "";
+/* READ */
+db.ref("sharedText")
+.on("value", snap => {
+  const val = snap.val();
 
-  // prevent unnecessary UI updates
-  if (value === input.value) return;
-
-  input.value = value;
-  output.innerText = value;
+  if (val === null) {
+    output.innerText = "Connected ✔ (no data yet)";
+  } else {
+    output.innerText = val;
+    input.value = val;
+  }
+}, error => {
+  output.innerText = "Firebase error: " + error.message;
 });
 </script>
 
