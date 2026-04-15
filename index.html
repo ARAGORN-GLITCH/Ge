@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Business Tally System (Cloud Sync)</title>
+<title>Business Tally System (Fixed Sync)</title>
 
 <style>
   body { font-family: Arial; margin: 40px; background: #f4f6f9; }
@@ -19,10 +19,10 @@
 
 <body>
 
-<h1>Business Sales Tally (Cloud Sync)</h1>
+<h1>Business Sales Tally (Stable Sync)</h1>
 
 <button onclick="addCustomer()">Add Customer</button>
-<button onclick="exportToExcel()">Export to Excel</button>
+<button onclick="exportToExcel()">Export toExcel</button>
 <button onclick="clearData()">Clear All</button>
 
 <table id="salesTable">
@@ -50,12 +50,11 @@
 <strong>BPI: ₱ <span id="bpiTotal">0</span></strong>
 </div>
 
-<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* 🔴 REPLACE WITH YOUR FIREBASE CONFIG */
+/* 🔴 REPLACE THIS */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -64,6 +63,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+/* 🔥 CONTROL FLAGS */
+let isLocalChange = false;
+let saveTimer;
 
 /* PRODUCTS */
 const products = {
@@ -84,13 +87,19 @@ function productOptions(selected="") {
 
 function paymentOptions(selected="") {
   return `
-    <select onchange="saveData(); calcPayments()">
+    <select onchange="debounceSave(); calcPayments()">
       <option value="">Select</option>
       <option ${selected==="Cash"?"selected":""}>Cash</option>
       <option ${selected==="GCash"?"selected":""}>GCash</option>
       <option ${selected==="BPI"?"selected":""}>BPI</option>
     </select>
   `;
+}
+
+/* DEBOUNCE SAVE */
+function debounceSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveData, 500);
 }
 
 /* ADD CUSTOMER */
@@ -102,10 +111,10 @@ window.addCustomer = function(data=null) {
   row.dataset.group = groupId;
 
   row.innerHTML = `
-    <td><input value="${data?.name||""}" oninput="saveData()"></td>
-    <td><select onchange="selectProduct(this); saveData()">${productOptions(data?.product)}</select></td>
-    <td><input type="number" value="${data?.qty||1}" oninput="calc(this); saveData()"></td>
-    <td><input type="number" value="${data?.price||0}" oninput="calc(this); saveData()"></td>
+    <td><input value="${data?.name||""}" oninput="debounceSave()"></td>
+    <td><select onchange="selectProduct(this); debounceSave()">${productOptions(data?.product)}</select></td>
+    <td><input type="number" value="${data?.qty||1}" oninput="calc(this); debounceSave()"></td>
+    <td><input type="number" value="${data?.price||0}" oninput="calc(this); debounceSave()"></td>
     <td class="rowTotal">0</td>
     <td>${paymentOptions(data?.payment)}</td>
     <td><button onclick="addItem(this)">+ Item</button></td>
@@ -135,9 +144,9 @@ window.addItem = function(btn) {
 
   newRow.innerHTML = `
     <td></td>
-    <td><select onchange="selectProduct(this); saveData()">${productOptions()}</select></td>
-    <td><input type="number" value="1" oninput="calc(this); saveData()"></td>
-    <td><input type="number" value="0" oninput="calc(this); saveData()"></td>
+    <td><select onchange="selectProduct(this); debounceSave()">${productOptions()}</select></td>
+    <td><input type="number" value="1" oninput="calc(this); debounceSave()"></td>
+    <td><input type="number" value="0" oninput="calc(this); debounceSave()"></td>
     <td class="rowTotal">0</td>
     <td></td>
     <td></td>
@@ -212,8 +221,10 @@ function calcPayments() {
   document.getElementById("bpiTotal").innerText = bpi.toFixed(2);
 }
 
-/* SAVE TO FIREBASE */
-window.saveData = async function() {
+/* SAVE */
+async function saveData() {
+  isLocalChange = true;
+
   const data = [];
 
   document.querySelectorAll("#salesTable tbody tr").forEach(r => {
@@ -229,11 +240,16 @@ window.saveData = async function() {
   });
 
   await setDoc(doc(db, "sales", "data"), { items: data });
-};
 
-/* REAL-TIME SYNC */
+  setTimeout(() => isLocalChange = false, 300);
+}
+
+/* REAL-TIME LISTENER */
 function listenData() {
   onSnapshot(doc(db, "sales", "data"), (docSnap) => {
+
+    if (isLocalChange) return;
+
     const tbody = document.querySelector("#salesTable tbody");
     tbody.innerHTML = "";
 
@@ -244,9 +260,7 @@ function listenData() {
 
     const data = docSnap.data().items;
 
-    data.forEach(d => {
-      addCustomer(d);
-    });
+    data.forEach(d => addCustomer(d));
 
     setTimeout(() => {
       document.querySelectorAll("#salesTable tbody tr").forEach(r => {
