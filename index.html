@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>POS with Payment Summary</title>
+<title>Clean POS</title>
 
 <style>
 body { font-family: Arial; margin:40px; }
@@ -11,13 +11,13 @@ th,td { border:1px solid #ddd; padding:8px; text-align:center; }
 th { background:#007bff; color:white; }
 .subtotal { background:#dff0d8; font-weight:bold; }
 button { margin-right:10px; padding:6px 10px; }
-.summary { margin-top:20px; font-size:16px; }
+.summary { margin-top:20px; }
 </style>
 </head>
 
 <body>
 
-<h2>Stable POS System</h2>
+<h2>POS System (Clean Start)</h2>
 
 <button onclick="addCustomer()">Add Customer</button>
 <button onclick="exportExcel()">Export to Excel</button>
@@ -35,16 +35,13 @@ button { margin-right:10px; padding:6px 10px; }
 <h3>Grand Total: ₱ <span id="grand">0</span></h3>
 
 <div class="summary">
-<strong>Cash: ₱ <span id="cashTotal">0</span></strong><br>
-<strong>GCash: ₱ <span id="gcashTotal">0</span></strong><br>
-<strong>BPI: ₱ <span id="bpiTotal">0</span></strong><br>
-<strong>Donated: ₱ <span id="donatedTotal">0</span></strong>
+Cash: ₱ <span id="cashTotal">0</span><br>
+GCash: ₱ <span id="gcashTotal">0</span><br>
+BPI: ₱ <span id="bpiTotal">0</span><br>
+Donated: ₱ <span id="donatedTotal">0</span>
 </div>
 
 <script>
-const BIN_ID="YOUR_BIN_ID";
-const API_KEY="YOUR_API_KEY";
-
 const products={Coke:20,Pepsi:18,Water:10,Chips:15};
 
 /* ADD CUSTOMER */
@@ -61,18 +58,18 @@ function addCustomer(){
 }
 
 /* ADD ITEM */
-function addItem(group,data={}){
+function addItem(group){
   const row=document.createElement("tr");
   row.dataset.group=group;
 
   row.innerHTML=`
-  <td><input value="${data.name||""}" oninput="saveLocal()"></td>
+  <td><input></td>
   <td><select onchange="setPrice(this)">
     <option></option>
-    ${Object.keys(products).map(p=>`<option ${data.product==p?"selected":""}>${p}</option>`)}
+    ${Object.keys(products).map(p=>`<option>${p}</option>`)}
   </select></td>
-  <td><input type="number" value="${data.qty||1}" oninput="calc(this)"></td>
-  <td><input type="number" value="${data.price||0}" oninput="calc(this)"></td>
+  <td><input type="number" value="1" oninput="calc(this)"></td>
+  <td><input type="number" value="0" oninput="calc(this)"></td>
   <td class="total">0</td>
   <td>
     <select onchange="calcAll()">
@@ -83,7 +80,7 @@ function addItem(group,data={}){
       <option>Donated</option>
     </select>
   </td>
-  <td><input type="number" value="${data.received||0}" oninput="calc(this)"></td>
+  <td><input type="number" value="0" oninput="calc(this)"></td>
   <td class="change">0</td>
   <td><button onclick="addItem(${group})">+</button></td>
   `;
@@ -99,10 +96,11 @@ function findSubtotal(g){
   return [...tableBody().children].find(r=>r.dataset.group==g && r.classList.contains("subtotal"));
 }
 
-/* CALC */
+/* CALCULATIONS */
 function setPrice(sel){
   const row=sel.closest("tr");
-  if(products[sel.value]) row.cells[3].children[0].value=products[sel.value];
+  const p=sel.value;
+  if(products[p]) row.cells[3].children[0].value=products[p];
   calc(row.cells[2]);
 }
 
@@ -121,7 +119,6 @@ function calc(input){
 
   updateSub(r.dataset.group);
   calcAll();
-  saveLocal();
 }
 
 function updateSub(g){
@@ -135,9 +132,8 @@ function updateSub(g){
   if(sub) sub.querySelector(".subVal").innerText=sum.toFixed(2);
 }
 
-/* TOTALS */
 function calcAll(){
-  let grand=0, cash=0, gcash=0, bpi=0, donated=0;
+  let grand=0,cash=0,gcash=0,bpi=0,donated=0;
 
   tableBody().querySelectorAll("tr").forEach(r=>{
     if(!r.classList.contains("subtotal")){
@@ -145,7 +141,6 @@ function calcAll(){
       const pay=r.cells[5].children[0].value;
 
       grand+=total;
-
       if(pay==="Cash") cash+=total;
       if(pay==="GCash") gcash+=total;
       if(pay==="BPI") bpi+=total;
@@ -160,80 +155,25 @@ function calcAll(){
   document.getElementById("donatedTotal").innerText=donated.toFixed(2);
 }
 
-/* SAVE LOCAL */
-function saveLocal(){
-  const data=[];
-  tableBody().querySelectorAll("tr").forEach(r=>{
-    if(!r.classList.contains("subtotal")){
-      data.push({
-        g:r.dataset.group,
-        n:r.cells[0].children[0].value,
-        p:r.cells[1].children[0].value,
-        q:r.cells[2].children[0].value,
-        pr:r.cells[3].children[0].value,
-        pay:r.cells[5].children[0].value,
-        rec:r.cells[6].children[0].value
-      });
-    }
-  });
-  localStorage.setItem("backup",JSON.stringify(data));
-}
-
-/* LOAD */
-function loadLocal(){
-  const data=JSON.parse(localStorage.getItem("backup")||"[]");
-  if(data.length===0){addCustomer();return;}
-
-  const groups={};
-  data.forEach(d=>{
-    if(!groups[d.g]) groups[d.g]=[];
-    groups[d.g].push(d);
-  });
-
-  for(let g in groups){
-    addCustomer();
-    groups[g].forEach(i=>addItem(g,{
-      name:i.n,product:i.p,qty:i.q,price:i.pr,received:i.rec
-    }));
-  }
-}
-
-/* EXPORT EXCEL */
+/* EXPORT */
 function exportExcel(){
   let csv=[];
   csv.push(["Name","Product","Qty","Price","Total","Payment","Received","Change"].join(","));
 
-  let cash=0,gcash=0,bpi=0,donated=0;
-
   document.querySelectorAll("#table tbody tr").forEach(r=>{
     if(!r.classList.contains("subtotal")){
-      const total=+r.cells[4].innerText||0;
-      const pay=r.cells[5].children[0].value;
-
-      if(pay==="Cash") cash+=total;
-      if(pay==="GCash") gcash+=total;
-      if(pay==="BPI") bpi+=total;
-      if(pay==="Donated") donated+=total;
-
       csv.push([
         r.cells[0].children[0].value,
         r.cells[1].children[0].value,
         r.cells[2].children[0].value,
         r.cells[3].children[0].value,
         r.cells[4].innerText,
-        pay,
+        r.cells[5].children[0].value,
         r.cells[6].children[0].value,
         r.cells[7].innerText
       ].join(","));
     }
   });
-
-  csv.push("");
-  csv.push("SUMMARY");
-  csv.push("Cash,"+cash.toFixed(2));
-  csv.push("GCash,"+gcash.toFixed(2));
-  csv.push("BPI,"+bpi.toFixed(2));
-  csv.push("Donated,"+donated.toFixed(2));
 
   const blob=new Blob([csv.join("\n")],{type:"text/csv"});
   const a=document.createElement("a");
@@ -241,9 +181,6 @@ function exportExcel(){
   a.download="sales.csv";
   a.click();
 }
-
-/* INIT */
-loadLocal();
 </script>
 
 </body>
