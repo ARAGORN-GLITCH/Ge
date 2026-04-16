@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>YOUTH CAMP</title>
+<title>Business Tally (Fixed Group)</title>
 
 <style>
   body { font-family: Arial; margin: 40px; background: #f4f6f9; }
@@ -16,7 +16,7 @@
 
 <body>
 
-<h1>CAMP CALYE!!!</h1>
+<h1>Business Sales Tally (Working Groups)</h1>
 
 <button onclick="addCustomer()">Add Customer</button>
 <button onclick="saveData()">Save</button>
@@ -55,16 +55,18 @@ const products = {
   Chips: 15
 };
 
-/* ADD CUSTOMER */
+/* ADD CUSTOMER (FIXED) */
 function addCustomer(data=null) {
   const tbody = document.querySelector("#table tbody");
-  const id = Date.now();
+  const groupId = Date.now();
 
-  addItemRow(id, data);
+  // FIRST ROW
+  addItemRow(groupId, data);
 
+  // SUBTOTAL ROW
   const subtotalRow = document.createElement("tr");
   subtotalRow.className = "subtotal";
-  subtotalRow.dataset.group = id;
+  subtotalRow.dataset.group = groupId;
 
   subtotalRow.innerHTML = `
     <td colspan="4">Customer Total</td>
@@ -75,7 +77,7 @@ function addCustomer(data=null) {
   tbody.appendChild(subtotalRow);
 }
 
-/* ADD ITEM */
+/* ADD ITEM (FIXED INSERTION) */
 function addItemRow(groupId, data={}) {
   const tbody = document.querySelector("#table tbody");
 
@@ -83,37 +85,41 @@ function addItemRow(groupId, data={}) {
   row.dataset.group = groupId;
 
   row.innerHTML = `
-    <td><input value="${data.name||""}"></td>
+    <td><input value="${data?.name||""}"></td>
     <td>
       <select onchange="autoPrice(this)">
         <option></option>
         ${Object.keys(products).map(p =>
-          `<option ${data.product===p?"selected":""}>${p}</option>`
+          `<option ${data?.product===p?"selected":""}>${p}</option>`
         ).join("")}
       </select>
     </td>
-    <td><input type="number" value="${data.qty||1}" oninput="calc(this)"></td>
-    <td><input type="number" value="${data.price||0}" oninput="calc(this)"></td>
+    <td><input type="number" value="${data?.qty||1}" oninput="calc(this)"></td>
+    <td><input type="number" value="${data?.price||0}" oninput="calc(this)"></td>
     <td class="total">0</td>
     <td>
       <select onchange="calcAll()">
         <option></option>
-        <option ${data.payment==="Cash"?"selected":""}>Cash</option>
-        <option ${data.payment==="GCash"?"selected":""}>GCash</option>
-        <option ${data.payment==="BPI"?"selected":""}>BPI</option>
+        <option ${data?.payment==="Cash"?"selected":""}>Cash</option>
+        <option ${data?.payment==="GCash"?"selected":""}>GCash</option>
+        <option ${data?.payment==="BPI"?"selected":""}>BPI</option>
       </select>
     </td>
-    <td><input type="number" value="${data.received||0}" oninput="calc(this)"></td>
+    <td><input type="number" value="${data?.received||0}" oninput="calc(this)"></td>
     <td class="change">0</td>
     <td><button onclick="addItemRow(${groupId})">+ Item</button></td>
   `;
 
+  // FIND SUBTOTAL
   const subtotal = [...tbody.children].find(r =>
     r.classList.contains("subtotal") && r.dataset.group == groupId
   );
 
-  if (subtotal) tbody.insertBefore(row, subtotal);
-  else tbody.appendChild(row);
+  if (subtotal) {
+    tbody.insertBefore(row, subtotal);
+  } else {
+    tbody.appendChild(row);
+  }
 }
 
 /* AUTO PRICE */
@@ -124,7 +130,7 @@ function autoPrice(sel) {
   calc(row.cells[2]);
 }
 
-/* CALC */
+/* CALCULATIONS */
 function calc(input) {
   const row = input.closest("tr");
   const qty = +row.cells[2].children[0].value;
@@ -224,9 +230,7 @@ async function loadData() {
   const groups = {};
 
   data.forEach(d=>{
-    if (!groups[d.group]) {
-      groups[d.group] = [];
-    }
+    if (!groups[d.group]) groups[d.group] = [];
     groups[d.group].push(d);
   });
 
