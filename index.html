@@ -156,7 +156,7 @@ function addCustomer() {
   sub.className = "subtotal";
   sub.dataset.group = id;
   sub.innerHTML = `
-    <td colspan="4">Camper Total</td>
+    <td colspan="4">Total</td>
     <td class="subVal">0</td>
     <td colspan="4"></td>
   `;
@@ -169,7 +169,7 @@ function addItem(group) {
   row.dataset.group = group;
 
   row.innerHTML = `
-    <td><input placeholder="Camper name"></td>
+    <td><input placeholder="Name"></td>
     <td>
       <select onchange="setPrice(this)">
         <option></option>
